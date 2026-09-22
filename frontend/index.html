@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>IntentStore</title>
+
+    <style>
+        /* =========================================================
+           INTENTSTORE - SAME UI STYLE
+           ========================================================= */
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            background: #eee6d2;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            color: #111;
+        }
+
+        /* =========================================================
+           MAIN CONTAINER
+           ========================================================= */
+
+        .page {
+            width: 100%;
+            min-height: 100vh;
+
+            padding: 35px 3%;
+        }
+
+        /* =========================================================
+           HEADER
+           ========================================================= */
+
+        .title {
+            text-align: center;
+
+            font-size: 88px;
+            font-weight: 900;
+
+            letter-spacing: 5px;
+
+            margin: 0;
+        }
+
+        .subtitle {
+            text-align: center;
+
+            margin-top: 42px;
+
+            font-size: 31px;
+
+            color: #31577d;
+        }
+
+        /* =========================================================
+           SEARCH AREA
+           ========================================================= */
+
+        .search-row {
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                500px
+                265px;
+
+            gap: 20px;
+
+            margin-top: 72px;
+
+            align-items: stretch;
+        }
+
+        /* =========================================================
+           INPUT
+           ========================================================= */
+
+        .question-input {
+            width: 100%;
+
+            min-height: 138px;
+
+            padding: 30px 45px;
+
+            border-radius: 30px;
+
+            border: 1.5px solid #aaa;
+
+            background: #f8f5ee;
+
+            outline: none;
+
+            font-size: 31px;
+
+            color: #111;
+        }
+
+        .question-input::placeholder {
+            color: #68788a;
+        }
+
+        .question-input:focus {
+            border-color: #777;
+        }
+
+        /* =========================================================
+           MODE SELECT
+           ========================================================= */
+
+        .mode-select {
+            width: 100%;
+
+            min-height: 138px;
+
+            padding: 0 35px;
+
+            border-radius: 30px;
+
+            border: 1.5px solid #aaa;
+
+            background: #f8f5ee;
+
+            font-size: 27px;
+
+            color: #111;
+
+            outline: none;
+
+            cursor: pointer;
+        }
+
+        /* =========================================================
+           SEARCH BUTTON
+           ========================================================= */
+
+        .search-button {
+            min-height: 138px;
+
+            border: none;
+
+            border-radius: 30px;
+
+            background: #171717;
+
+            color: white;
+
+            font-size: 29px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+            padding: 20px;
+
+            transition:
+                transform 0.15s ease,
+                opacity 0.15s ease;
+        }
+
+        .search-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .search-button:active {
+            transform: translateY(0);
+        }
+
+        .search-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            transform: none;
+        }
+
+        /* =========================================================
+           EXAMPLE BUTTON
+           ========================================================= */
+
+        .example-container {
+            display: flex;
+
+            justify-content: flex-end;
+
+            margin-top: 36px;
+
+            padding-right: 0;
+        }
+
+        .example-button {
+            min-width: 345px;
+
+            min-height: 84px;
+
+            padding: 15px 30px;
+
+            border-radius: 28px;
+
+            border: 1.5px solid #aaa;
+
+            background: #f4eee1;
+
+            color: #111;
+
+            font-size: 26px;
+
+            cursor: pointer;
+        }
+
+        .example-button:hover {
+            background: #eee5d4;
+        }
+
+        /* =========================================================
+           STATUS / ERROR
+           ========================================================= */
+
+        .status {
+            width: 100%;
+
+            margin-top: 38px;
+
+            padding: 24px 32px;
+
+            border-radius: 22px;
+
+            border: 1px solid transparent;
+
+            font-size: 23px;
+
+            display: none;
+        }
+
+        .status.error {
+            display: block;
+
+            background: #f8d9d2;
+
+            border-color: #e79b8d;
+
+            color: #9b2c20;
+        }
+
+        .status.success {
+            display: block;
+
+            background: #dcefdc;
+
+            border-color: #9ac79a;
+
+            color: #256329;
+        }
+
+        .status.loading {
+            display: block;
+
+            background: #eee8d9;
+
+            border-color: #c5bda9;
+
+            color: #444;
+        }
+
+        /* =========================================================
+           RESULTS
+           ========================================================= */
+
+        .results-section {
+            margin-top: 48px;
+
+            display: none;
+        }
+
+        .results-section.visible {
+            display: block;
+        }
+
+        .results-title {
+            font-size: 48px;
+
+            font-weight: 800;
+
+            margin: 0 0 28px 0;
+        }
+
+        /* =========================================================
+           ANSWER
+           ========================================================= */
+
+        .answer-card {
+            background: #f8f5ee;
+
+            border: 1px solid #b8b0a1;
+
+            border-radius: 25px;
+
+            padding: 30px 35px;
+
+            margin-bottom: 28px;
+        }
+
+        .answer-heading {
+            font-size: 28px;
+
+            font-weight: 700;
+
+            margin-bottom: 18px;
+        }
+
+        .answer-text {
+            font-size: 23px;
+
+            line-height: 1.6;
+
+            white-space: pre-wrap;
+        }
+
+        /* =========================================================
+           EVIDENCE CARDS
+           ========================================================= */
+
+        .evidence-card {
+            background: #f8f5ee;
+
+            border: 1px solid #b8b0a1;
+
+            border-radius: 22px;
+
+            padding: 26px 30px;
+
+            margin-bottom: 20px;
+        }
+
+        .document-name {
+            font-size: 25px;
+
+            font-weight: 700;
+
+            margin-bottom: 12px;
+        }
+
+        .document-info {
+            font-size: 18px;
+
+            color: #555;
+
+            margin-bottom: 16px;
+        }
+
+        .evidence-text {
+            font-size: 20px;
+
+            line-height: 1.55;
+
+            white-space: pre-wrap;
+        }
+
+        /* =========================================================
+           DOCUMENT RETRIEVAL RESULT
+           ========================================================= */
+
+        .document-result {
+            background: #f8f5ee;
+
+            border: 1px solid #b8b0a1;
+
+            border-radius: 25px;
+
+            padding: 30px 35px;
+
+            margin-bottom: 25px;
+        }
+
+        .document-result h3 {
+            margin: 0 0 15px 0;
+
+            font-size: 28px;
+        }
+
+        .document-result p {
+            font-size: 21px;
+
+            line-height: 1.6;
+
+            margin: 8px 0;
+        }
+
+        /* =========================================================
+           NO RESULTS
+           ========================================================= */
+
+        .no-results {
+            background: #f8f5ee;
+
+            border: 1px solid #b8b0a1;
+
+            border-radius: 22px;
+
+            padding: 30px;
+
+            font-size: 22px;
+        }
+
+        /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+        @media (max-width: 1200px) {
+
+            .search-row {
+                grid-template-columns:
+                    minmax(0, 1fr)
+                    380px
+                    220px;
+            }
+
+            .title {
+                font-size: 70px;
+            }
+
+            .subtitle {
+                font-size: 26px;
+            }
+        }
+
+        @media (max-width: 900px) {
+
+            .search-row {
+                grid-template-columns: 1fr;
+            }
+
+            .title {
+                font-size: 55px;
+            }
+
+            .subtitle {
+                font-size: 23px;
+            }
+
+            .example-container {
+                justify-content: flex-start;
+            }
+
+            .question-input,
+            .mode-select,
+            .search-button {
+                min-height: 100px;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+<div class="page">
+
+    <!-- =========================================================
+         HEADER
+         ========================================================= -->
+
+    <h1 class="title">
+        INTENTSTORE
+    </h1>
+
+    <div class="subtitle">
+        Intelligent document storage and retrieval
+    </div>
+
+
+    <!-- =========================================================
+         SEARCH AREA
+         ========================================================= -->
+
+    <div class="search-row">
+
+        <!-- QUESTION INPUT -->
+
+        <input
+            id="questionInput"
+            class="question-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Search your knowledge base..."
+        >
+
+
+        <!-- RETRIEVAL MODE -->
+
+        <select
+            id="modeSelect"
+            class="mode-select"
+        >
+
+            <option value="information">
+                🔎 Information Retrieval
+            </option>
+
+            <option value="document">
+                📄 Document Retrieval
+            </option>
+
+        </select>
+
+
+        <!-- MAIN BUTTON -->
+
+        <button
+            id="searchButton"
+            class="search-button"
+            type="button"
+        >
+            Search
+        </button>
+
+    </div>
+
+
+    <!-- =========================================================
+         EXAMPLE QUESTION
+         ========================================================= -->
+
+    <div
+        id="exampleContainer"
+        class="example-container"
+    >
+
+        <button
+            id="exampleButton"
+            class="example-button"
+            type="button"
+        >
+            ✨ Example Question
+        </button>
+
+    </div>
+
+
+    <!-- =========================================================
+         STATUS
+         ========================================================= -->
+
+    <div
+        id="status"
+        class="status"
+    ></div>
+
+
+    <!-- =========================================================
+         RESULTS
+         ========================================================= -->
+
+    <section
+        id="resultsSection"
+        class="results-section"
+    >
+
+        <h2
+            id="resultsTitle"
+            class="results-title"
+        >
+            Retrieved Evidence
+        </h2>
+
+        <div id="resultsContainer"></div>
+
+    </section>
+
+</div>
+
+
+<script>
+
+    /* =============================================================
+       INTENTSTORE FRONTEND
+       IMPORTANT:
+       NOTHING RUNS WHEN USER TYPES OR PASTES.
+       ONLY BUTTON CLICK RUNS SEARCH.
+       ============================================================= */
+
+    const questionInput =
+        document.getElementById("questionInput");
+
+    const modeSelect =
+        document.getElementById("modeSelect");
+
+    const searchButton =
+        document.getElementById("searchButton");
+
+    const exampleButton =
+        document.getElementById("exampleButton");
+
+    const exampleContainer =
+        document.getElementById("exampleContainer");
+
+    const status =
+        document.getElementById("status");
+
+    const resultsSection =
+        document.getElementById("resultsSection");
+
+    const resultsTitle =
+        document.getElementById("resultsTitle");
+
+    const resultsContainer =
+        document.getElementById("resultsContainer");
+
+
+    /* =============================================================
+       STATUS
+       ============================================================= */
+
+    function showStatus(message, type) {
+
+        status.textContent = message;
+
+        status.className =
+            "status " + type;
+
+    }
+
+
+    function clearStatus() {
+
+        status.textContent = "";
+
+        status.className = "status";
+
+    }
+
+
+    /* =============================================================
+       CLEAR RESULTS
+       ============================================================= */
+
+    function clearResults() {
+
+        resultsContainer.innerHTML = "";
+
+        resultsSection.classList.remove(
+            "visible"
+        );
+
+    }
+
+
+    /* =============================================================
+       MODE CHANGE
+       IMPORTANT:
+       THIS DOES NOT SEARCH.
+       ============================================================= */
+
+    modeSelect.addEventListener(
+        "change",
+        function () {
+
+            clearStatus();
+
+            clearResults();
+
+            const mode =
+                modeSelect.value;
+
+            if (mode === "document") {
+
+                searchButton.textContent =
+                    "Find Document";
+
+                questionInput.placeholder =
+                    "Enter document name...";
+
+                exampleContainer.style.display =
+                    "none";
+
+            } else {
+
+                searchButton.textContent =
+                    "Search";
+
+                questionInput.placeholder =
+                    "Search your knowledge base...";
+
+                exampleContainer.style.display =
+                    "flex";
+            }
+
+        }
+    );
+
+
+    /* =============================================================
+       EXAMPLE QUESTION
+       
+       VERY IMPORTANT:
+       This ONLY inserts a question.
+       It DOES NOT call the backend.
+       ============================================================= */
+
+    exampleButton.addEventListener(
+        "click",
+        async function () {
+
+            try {
+
+                showStatus(
+                    "Loading example question...",
+                    "loading"
+                );
+
+                const response =
+                    await fetch(
+                        "/api/examples",
+                        {
+                            method: "GET",
+                            headers: {
+                                "Accept":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+                const contentType =
+                    response.headers.get(
+                        "content-type"
+                    ) || "";
+
+                if (!contentType.includes(
+                    "application/json"
+                )) {
+
+                    throw new Error(
+                        "Backend returned HTML instead of JSON."
+                    );
+                }
+
+                const data =
+                    await response.json();
+
+                if (
+                    !data.success ||
+                    !Array.isArray(data.questions) ||
+                    data.questions.length === 0
+                ) {
+
+                    throw new Error(
+                        "No example questions available."
+                    );
+                }
+
+                const randomIndex =
+                    Math.floor(
+                        Math.random() *
+                        data.questions.length
+                    );
+
+                questionInput.value =
+                    data.questions[randomIndex];
+
+                clearStatus();
+
+                /*
+                 * DO NOT SEARCH HERE.
+                 *
+                 * User must press Search.
+                 */
+
+                questionInput.focus();
+
+            } catch (error) {
+
+                showStatus(
+                    error.message ||
+                    "Could not load example question.",
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+    /* =============================================================
+       MAIN SEARCH BUTTON
+       
+       THE ONLY PLACE WHERE SEARCH HAPPENS.
+       ============================================================= */
+
+    searchButton.addEventListener(
+        "click",
+        async function () {
+
+            const question =
+                questionInput.value.trim();
+
+            if (!question) {
+
+                showStatus(
+                    modeSelect.value === "document"
+                        ? "Please enter a document name."
+                        : "Please enter a question.",
+                    "error"
+                );
+
+                questionInput.focus();
+
+                return;
+            }
+
+
+            /* -----------------------------------------------------
+               Disable button while processing
+               ----------------------------------------------------- */
+
+            searchButton.disabled = true;
+
+
+            clearResults();
+
+
+            /* =====================================================
+               INFORMATION RETRIEVAL
+               ===================================================== */
+
+            if (
+                modeSelect.value === "information"
+            ) {
+
+                searchButton.textContent =
+                    "Searching...";
+
+                showStatus(
+                    "Searching the knowledge base...",
+                    "loading"
+                );
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api/ask",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    "Accept":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+                                    question:
+                                        question
+                                })
+                            }
+                        );
+
+
+                    const contentType =
+                        response.headers.get(
+                            "content-type"
+                        ) || "";
+
+
+                    if (
+                        !contentType.includes(
+                            "application/json"
+                        )
+                    ) {
+
+                        const text =
+                            await response.text();
+
+                        throw new Error(
+                            "Backend returned HTML instead of JSON. " +
+                            "Make sure Flask is running from frontend/app.py."
+                        );
+                    }
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (!response.ok ||
+                        !data.success
+                    ) {
+
+                        throw new Error(
+                            data.error ||
+                            data.answer ||
+                            "Information retrieval failed."
+                        );
+                    }
+
+
+                    /* ------------------------------------------------
+                       DISPLAY ANSWER
+                       ------------------------------------------------ */
+
+                    resultsTitle.textContent =
+                        "AI Answer";
+
+                    resultsContainer.innerHTML = "";
+
+
+                    const answerCard =
+                        document.createElement(
+                            "div"
+                        );
+
+                    answerCard.className =
+                        "answer-card";
+
+
+                    answerCard.innerHTML = `
+                        <div class="answer-heading">
+                            Answer
+                        </div>
+
+                        <div class="answer-text">
+                            ${escapeHtml(
+                                data.answer || ""
+                            )}
+                        </div>
+                    `;
+
+
+                    resultsContainer.appendChild(
+                        answerCard
+                    );
+
+
+                    /* ------------------------------------------------
+                       DISPLAY RETRIEVED EVIDENCE
+                       ------------------------------------------------ */
+
+                    if (
+                        Array.isArray(data.results) &&
+                        data.results.length > 0
+                    ) {
+
+                        const evidenceHeading =
+                            document.createElement(
+                                "div"
+                            );
+
+                        evidenceHeading.style.fontSize =
+                            "32px";
+
+                        evidenceHeading.style.fontWeight =
+                            "700";
+
+                        evidenceHeading.style.margin =
+                            "25px 0";
+
+                        evidenceHeading.textContent =
+                            "Retrieved Evidence";
+
+                        resultsContainer.appendChild(
+                            evidenceHeading
+                        );
+
+
+                        data.results.forEach(
+                            function (result) {
+
+                                const card =
+                                    document.createElement(
+                                        "div"
+                                    );
+
+                                card.className =
+                                    "evidence-card";
+
+
+                                card.innerHTML = `
+                                    <div class="document-name">
+                                        📄 ${escapeHtml(
+                                            result.filename ||
+                                            "Unknown document"
+                                        )}
+                                    </div>
+
+                                    <div class="document-info">
+                                        Page:
+                                        ${escapeHtml(
+                                            String(
+                                                result.page_number ??
+                                                "Unknown"
+                                            )
+                                        )}
+                                        &nbsp;&nbsp;|&nbsp;&nbsp;
+
+                                        Chunk:
+                                        ${escapeHtml(
+                                            String(
+                                                result.chunk_number ??
+                                                "Unknown"
+                                            )
+                                        )}
+                                        &nbsp;&nbsp;|&nbsp;&nbsp;
+
+                                        Relevance:
+                                        ${escapeHtml(
+                                            String(
+                                                result.relevance_score ??
+                                                result.similarity_score ??
+                                                0
+                                            )
+                                        )}
+                                    </div>
+
+                                    <div class="evidence-text">
+                                        ${escapeHtml(
+                                            result.text || ""
+                                        )}
+                                    </div>
+                                `;
+
+
+                                resultsContainer.appendChild(
+                                    card
+                                );
+
+                            }
+                        );
+
+                    }
+
+
+                    resultsSection.classList.add(
+                        "visible"
+                    );
+
+                    showStatus(
+                        "Search completed successfully.",
+                        "success"
+                    );
+
+
+                } catch (error) {
+
+                    showStatus(
+                        error.message ||
+                        "Information retrieval failed.",
+                        "error"
+                    );
+
+                }
+
+
+                /* ------------------------------------------------
+                   Restore button
+                   ------------------------------------------------ */
+
+                searchButton.disabled = false;
+
+                searchButton.textContent =
+                    "Search";
+
+                return;
+            }
+
+
+            /* =====================================================
+               DOCUMENT RETRIEVAL
+               ===================================================== */
+
+            if (
+                modeSelect.value === "document"
+            ) {
+
+                searchButton.textContent =
+                    "Finding...";
+
+                showStatus(
+                    "Searching for the requested document...",
+                    "loading"
+                );
+
+
+                try {
+
+                    /*
+                     * IMPORTANT:
+                     *
+                     * Your Flask backend currently exposes
+                     * /api/search for semantic document retrieval.
+                     *
+                     * It expects:
+                     *
+                     * {
+                     *     "query": "..."
+                     * }
+                     */
+
+                    const response =
+                        await fetch(
+                            "/api/search",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    "Accept":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+                                    query:
+                                        question
+                                })
+                            }
+                        );
+
+
+                    const contentType =
+                        response.headers.get(
+                            "content-type"
+                        ) || "";
+
+
+                    if (
+                        !contentType.includes(
+                            "application/json"
+                        )
+                    ) {
+
+                        throw new Error(
+                            "Backend returned HTML instead of JSON. " +
+                            "Make sure Flask is running from frontend/app.py."
+                        );
+                    }
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (
+                        !response.ok ||
+                        !data.success
+                    ) {
+
+                        throw new Error(
+                            data.error ||
+                            "Document retrieval failed."
+                        );
+                    }
+
+
+                    /* ------------------------------------------------
+                       NO DOCUMENT FOUND
+                       ------------------------------------------------ */
+
+                    if (
+                        !Array.isArray(data.results) ||
+                        data.results.length === 0
+                    ) {
+
+                        resultsTitle.textContent =
+                            "Document Retrieval";
+
+                        resultsContainer.innerHTML = `
+                            <div class="no-results">
+                                No matching document was found
+                                for:
+                                <strong>
+                                    ${escapeHtml(question)}
+                                </strong>
+                            </div>
+                        `;
+
+                        resultsSection.classList.add(
+                            "visible"
+                        );
+
+                        showStatus(
+                            "No matching document found.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    /* ------------------------------------------------
+                       DISPLAY DOCUMENT RESULTS
+                       ------------------------------------------------ */
+
+                    resultsTitle.textContent =
+                        "Retrieved Document";
+
+
+                    resultsContainer.innerHTML = "";
+
+
+                    data.results.forEach(
+                        function (result, index) {
+
+                            const card =
+                                document.createElement(
+                                    "div"
+                                );
+
+                            card.className =
+                                "document-result";
+
+
+                            card.innerHTML = `
+
+                                <h3>
+                                    📄
+                                    ${escapeHtml(
+                                        result.filename ||
+                                        "Unknown document"
+                                    )}
+                                </h3>
+
+                                <p>
+                                    <strong>
+                                        Result:
+                                    </strong>
+                                    ${index + 1}
+                                </p>
+
+                                <p>
+                                    <strong>
+                                        Page:
+                                    </strong>
+                                    ${escapeHtml(
+                                        String(
+                                            result.page_number ??
+                                            "Unknown"
+                                        )
+                                    )}
+                                </p>
+
+                                <p>
+                                    <strong>
+                                        Chunk:
+                                    </strong>
+                                    ${escapeHtml(
+                                        String(
+                                            result.chunk_number ??
+                                            "Unknown"
+                                        )
+                                    )}
+                                </p>
+
+                                <p>
+                                    <strong>
+                                        Relevance:
+                                    </strong>
+                                    ${escapeHtml(
+                                        String(
+                                            result.relevance_score ??
+                                            result.similarity_score ??
+                                            0
+                                        )
+                                    )}
+                                </p>
+
+                                <hr>
+
+                                <p>
+                                    <strong>
+                                        Retrieved Content:
+                                    </strong>
+                                </p>
+
+                                <p>
+                                    ${escapeHtml(
+                                        result.text ||
+                                        "No text available."
+                                    )}
+                                </p>
+
+                            `;
+
+
+                            resultsContainer.appendChild(
+                                card
+                            );
+
+                        }
+                    );
+
+
+                    resultsSection.classList.add(
+                        "visible"
+                    );
+
+
+                    showStatus(
+                        "Document retrieved successfully.",
+                        "success"
+                    );
+
+
+                } catch (error) {
+
+                    showStatus(
+                        error.message ||
+                        "Document retrieval failed.",
+                        "error"
+                    );
+
+                }
+
+
+                /* ------------------------------------------------
+                   Restore button
+                   ------------------------------------------------ */
+
+                searchButton.disabled = false;
+
+                searchButton.textContent =
+                    "Find Document";
+
+            }
+
+        }
+    );
+
+
+    /* =============================================================
+       ENTER KEY
+       
+       Enter is allowed to search, but typing/pasting NEVER searches.
+       ============================================================= */
+
+    questionInput.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                searchButton.click();
+
+            }
+
+        }
+    );
+
+
+    /* =============================================================
+       HTML ESCAPE
+       
+       Prevents backend text from breaking the page.
+       ============================================================= */
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+
+    }
+
+
+    /* =============================================================
+       INITIAL STATE
+       
+       NOTHING IS CALLED HERE.
+       
+       This is intentional.
+       
+       Pasting a question will NOT search.
+       Page loading will NOT search.
+       ============================================================= */
+
+    clearStatus();
+
+    clearResults();
+
+</script>
+
+</body>
+</html>
