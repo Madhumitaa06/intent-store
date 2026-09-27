@@ -1,5 +1,5 @@
 # ================================================================
-# INTENTSTORE - RAG ENGINE (with real LLM generation)
+# INTENTSTORE - RAG ENGINE (with real LLM generation via Groq - FREE)
 # ================================================================
 #
 # CHANGE FROM PREVIOUS VERSION:
@@ -8,11 +8,14 @@
 # LLM and asks it to compose a grounded natural-language answer,
 # which is what "RAG" actually means.
 #
+# Uses Groq (https://console.groq.com) instead of OpenAI because
+# Groq's free tier requires no credit card and runs Llama 3.3 —
+# which matches what the project's requirements slide already lists.
+#
 # SETUP:
-#   pip install openai python-dotenv
-#   Create a .env file (or set an environment variable) with:
-#       OPENAI_API_KEY=your_key_here
-#       LLM_MODEL=gpt-4o-mini          (optional, this is the default)
+#   pip install groq python-dotenv
+#   Get a free key at https://console.groq.com -> API Keys
+#   Set it as a Codespaces secret (or .env file) named GROQ_API_KEY
 #
 # If no API key is found, the engine automatically falls back to
 # the old extractive behavior so the app never crashes during a demo.
@@ -30,13 +33,13 @@ except Exception:
     pass
 
 try:
-    from openai import OpenAI
-    _OPENAI_AVAILABLE = True
+    from groq import Groq
+    _GROQ_AVAILABLE = True
 except Exception:
-    _OPENAI_AVAILABLE = False
+    _GROQ_AVAILABLE = False
 
 
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 
 
 # ================================================================
@@ -51,26 +54,18 @@ class RAGEngine:
         print("INITIALIZING INTENTSTORE RAG ENGINE")
         print("=" * 70)
 
-        # --------------------------------------------------------
-        # Connect search engine
-        # --------------------------------------------------------
-
         self.search_engine = IntentStoreSearch()
 
         print("\nSearch engine connected to RAG engine.")
 
-        # --------------------------------------------------------
-        # Connect LLM client (optional)
-        # --------------------------------------------------------
-
         self.llm_client = None
         self.llm_enabled = False
 
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("GROQ_API_KEY")
 
-        if _OPENAI_AVAILABLE and api_key:
+        if _GROQ_AVAILABLE and api_key:
             try:
-                self.llm_client = OpenAI(api_key=api_key)
+                self.llm_client = Groq(api_key=api_key)
                 self.llm_enabled = True
                 print(f"LLM generation ENABLED (model: {LLM_MODEL}).")
             except Exception as error:
@@ -79,17 +74,13 @@ class RAGEngine:
         else:
             print(
                 "LLM generation DISABLED "
-                "(no OPENAI_API_KEY found). "
+                "(no GROQ_API_KEY found). "
                 "Falling back to extractive answers."
             )
 
         print("\n" + "=" * 70)
         print("RAG ENGINE READY")
         print("=" * 70)
-
-    # ============================================================
-    # ASK
-    # ============================================================
 
     def ask(self, question, top_k=5):
 
@@ -107,10 +98,6 @@ class RAGEngine:
         print(question)
         print("=" * 70)
 
-        # --------------------------------------------------------
-        # Retrieve evidence
-        # --------------------------------------------------------
-
         results = self.search_engine.search(question, top_k=top_k)
 
         if not results:
@@ -122,10 +109,6 @@ class RAGEngine:
                 "results": [],
                 "generated_by_llm": False
             }
-
-        # --------------------------------------------------------
-        # Generate answer (LLM if available, else extractive)
-        # --------------------------------------------------------
 
         if self.llm_enabled:
             try:
@@ -145,10 +128,6 @@ class RAGEngine:
             "results": results,
             "generated_by_llm": False
         }
-
-    # ============================================================
-    # LLM-BASED GENERATION (real RAG step)
-    # ============================================================
 
     def _generate_answer_llm(self, question, results, top_n=5):
 
@@ -197,10 +176,6 @@ class RAGEngine:
 
         return answer
 
-    # ============================================================
-    # EXTRACTIVE FALLBACK (old behavior, kept as a safety net)
-    # ============================================================
-
     def _generate_answer_extractive(self, results, top_n=3):
 
         best_results = results[:top_n]
@@ -230,10 +205,6 @@ class RAGEngine:
             + combined
         )
 
-
-# ================================================================
-# TEST
-# ================================================================
 
 if __name__ == "__main__":
 
