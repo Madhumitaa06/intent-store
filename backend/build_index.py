@@ -3,6 +3,8 @@ import numpy as np
 import json
 from pathlib import Path
 
+from auto_organizer import organize
+
 
 EMBEDDINGS_FILE = Path("data/index/embeddings.npy")
 CHUNKS_FILE = Path("data/index/chunks.json")
@@ -39,6 +41,13 @@ def build_faiss_index():
     print("Chunks available:", len(chunks))
     print("Vector dimensions:", dimension)
     print("Index saved to:", INDEX_FILE)
+
+    # Auto-organize: categories, tags, duplicates
+    print("\nRunning auto-organizer...")
+    try:
+        organize()
+    except Exception as error:
+        print("Auto-organizer failed (index was still built):", error)
 
 
 if __name__ == "__main__":
