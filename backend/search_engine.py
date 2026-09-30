@@ -9,11 +9,12 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from auth import get_user_documents
+
 try:
     from relevance_ranker import rank_results
 except Exception:
     rank_results = None
-
 
 # ================================================================
 # PATHS
@@ -24,10 +25,10 @@ PROJECT_ROOT = BACKEND_DIR.parent
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
-
 # ================================================================
 # SEARCH ENGINE
 # ================================================================
+
 
 class IntentStoreSearch:
 
@@ -36,10 +37,6 @@ class IntentStoreSearch:
         print("\n" + "=" * 70)
         print("INITIALIZING INTENTSTORE SEARCH ENGINE")
         print("=" * 70)
-
-        # --------------------------------------------------------
-        # Locate data
-        # --------------------------------------------------------
 
         self.data_dir = self._find_data_directory()
 
@@ -50,10 +47,6 @@ class IntentStoreSearch:
 
         print("\nINDEX DIRECTORY:")
         print(self.index_dir)
-
-        # --------------------------------------------------------
-        # Locate files
-        # --------------------------------------------------------
 
         self.chunks_file = self._find_file(
             "chunks.json",
@@ -81,10 +74,6 @@ class IntentStoreSearch:
         print("faiss.index:")
         print(self.index_file)
 
-        # --------------------------------------------------------
-        # Load model
-        # --------------------------------------------------------
-
         print("\nLoading embedding model...")
 
         self.model = SentenceTransformer(
@@ -92,10 +81,6 @@ class IntentStoreSearch:
         )
 
         print("Embedding model loaded.")
-
-        # --------------------------------------------------------
-        # Load chunks
-        # --------------------------------------------------------
 
         print("\nLoading chunks...")
 
@@ -107,15 +92,12 @@ class IntentStoreSearch:
 
             self.chunks = json.load(file)
 
-        # Handle dictionary format
         if isinstance(self.chunks, dict):
 
             if "chunks" in self.chunks:
-
                 self.chunks = self.chunks["chunks"]
 
             else:
-
                 self.chunks = list(
                     self.chunks.values()
                 )
@@ -129,10 +111,6 @@ class IntentStoreSearch:
             raise ValueError(
                 "chunks.json exists but contains no chunks."
             )
-
-        # --------------------------------------------------------
-        # Load metadata
-        # --------------------------------------------------------
 
         self.document_metadata = {}
 
@@ -160,11 +138,10 @@ class IntentStoreSearch:
 
                 print(error)
 
-        # --------------------------------------------------------
-        # Load / build FAISS
-        # --------------------------------------------------------
-
-        if self.index_file and self.index_file.exists():
+        if (
+            self.index_file
+            and self.index_file.exists()
+        ):
 
             try:
 
@@ -205,10 +182,6 @@ class IntentStoreSearch:
 
             self._build_index()
 
-        # --------------------------------------------------------
-        # Validate index
-        # --------------------------------------------------------
-
         if self.index.ntotal != len(self.chunks):
 
             print("\nIndex/chunk count mismatch.")
@@ -226,10 +199,6 @@ class IntentStoreSearch:
             )
 
             self._build_index()
-
-        # --------------------------------------------------------
-        # READY
-        # --------------------------------------------------------
 
         print("\n" + "=" * 70)
         print("INTENTSTORE SEARCH ENGINE READY")
@@ -254,20 +223,15 @@ class IntentStoreSearch:
     def _find_data_directory(self):
 
         candidates = [
-
             BACKEND_DIR / "data",
-
             PROJECT_ROOT / "data",
-
         ]
 
         for directory in candidates:
 
             if directory.exists():
-
                 return directory
 
-        # Create default backend/data
         directory = BACKEND_DIR / "data"
 
         directory.mkdir(
@@ -284,14 +248,10 @@ class IntentStoreSearch:
     def _find_index_directory(self):
 
         candidates = [
-
             BACKEND_DIR / "data" / "index",
-
             PROJECT_ROOT / "data" / "index",
-
         ]
 
-        # First priority: directory containing chunks
         for directory in candidates:
 
             if (
@@ -304,14 +264,11 @@ class IntentStoreSearch:
 
                 return directory
 
-        # Return existing directory
         for directory in candidates:
 
             if directory.exists():
-
                 return directory
 
-        # Create standard location
         directory = BACKEND_DIR / "data" / "index"
 
         directory.mkdir(
@@ -332,37 +289,23 @@ class IntentStoreSearch:
     ):
 
         candidates = [
-
-            # Index directory
             self.index_dir / filename,
-
-            # Backend data
             BACKEND_DIR / "data" / filename,
-
-            # Project data
             PROJECT_ROOT / "data" / filename,
-
         ]
-
-        # --------------------------------------------------------
-        # Direct candidates
-        # --------------------------------------------------------
 
         for path in candidates:
 
-            if path.exists() and path.is_file():
+            if (
+                path.exists()
+                and path.is_file()
+            ):
 
                 return path
 
-        # --------------------------------------------------------
-        # Recursive search
-        # --------------------------------------------------------
-
         search_roots = [
-
             BACKEND_DIR,
             PROJECT_ROOT,
-
         ]
 
         for root in search_roots:
@@ -379,34 +322,104 @@ class IntentStoreSearch:
 
             if matches:
 
-                # Prefer index folder for index-related files
                 for match in matches:
 
-                    if match.parent.name.lower() == "index":
+                    if (
+                        match.parent.name.lower()
+                        == "index"
+                    ):
 
                         return match
 
                 return matches[0]
 
-        # --------------------------------------------------------
-        # Missing
-        # --------------------------------------------------------
-
         if required:
 
             raise FileNotFoundError(
-
                 f"\nRequired file '{filename}' was not found.\n\n"
-
                 f"Searched in:\n"
-
                 f"{BACKEND_DIR}\n"
-
                 f"{PROJECT_ROOT}\n\n"
-
                 f"Please make sure the dataset files exist."
-
             )
+
+        return None
+
+    # ============================================================
+    # GET FILENAME FROM CHUNK
+    # ============================================================
+
+    def _get_chunk_filename(self, chunk):
+
+        if not isinstance(chunk, dict):
+            return None
+
+        # --------------------------------------------------------
+        # Direct filename fields
+        # --------------------------------------------------------
+
+        possible_fields = [
+            "filename",
+            "file_name",
+            "document",
+            "document_name",
+            "source",
+            "file",
+            "path",
+            "document_path"
+        ]
+
+        for field in possible_fields:
+
+            value = chunk.get(field)
+
+            if value:
+
+                value = str(value).strip()
+
+                if value:
+
+                    return Path(value).name
+
+        # --------------------------------------------------------
+        # Nested metadata
+        # --------------------------------------------------------
+
+        metadata = chunk.get("metadata")
+
+        if isinstance(metadata, dict):
+
+            for field in possible_fields:
+
+                value = metadata.get(field)
+
+                if value:
+
+                    value = str(value).strip()
+
+                    if value:
+
+                        return Path(value).name
+
+        # --------------------------------------------------------
+        # Nested document information
+        # --------------------------------------------------------
+
+        document_info = chunk.get("document_info")
+
+        if isinstance(document_info, dict):
+
+            for field in possible_fields:
+
+                value = document_info.get(field)
+
+                if value:
+
+                    value = str(value).strip()
+
+                    if value:
+
+                        return Path(value).name
 
         return None
 
@@ -447,13 +460,9 @@ class IntentStoreSearch:
             texts.append(text)
 
         embeddings = self.model.encode(
-
             texts,
-
             normalize_embeddings=True,
-
             show_progress_bar=True
-
         )
 
         embeddings = np.asarray(
@@ -470,10 +479,6 @@ class IntentStoreSearch:
         self.index.add(
             embeddings
         )
-
-        # --------------------------------------------------------
-        # Save
-        # --------------------------------------------------------
 
         self.index_dir.mkdir(
             parents=True,
@@ -510,7 +515,8 @@ class IntentStoreSearch:
     def search(
         self,
         query,
-        top_k=5
+        top_k=5,
+        user_id=None
     ):
 
         query = str(
@@ -518,23 +524,52 @@ class IntentStoreSearch:
         ).strip()
 
         if not query:
-
             return []
 
         if self.index.ntotal == 0:
+            return []
+
+        # --------------------------------------------------------
+        # SECURITY
+        # --------------------------------------------------------
+
+        if user_id is None:
+
+            print(
+                "SECURITY: Search rejected because "
+                "no user_id was provided."
+            )
 
             return []
 
         # --------------------------------------------------------
-        # Query embedding
+        # USER DOCUMENTS
+        # --------------------------------------------------------
+
+        user_documents = get_user_documents(
+            user_id
+        )
+
+        print(
+            f"USER {user_id} DOCUMENTS:",
+            user_documents
+        )
+
+        if not user_documents:
+
+            print(
+                f"No documents assigned to user {user_id}."
+            )
+
+            return []
+
+        # --------------------------------------------------------
+        # QUERY EMBEDDING
         # --------------------------------------------------------
 
         query_embedding = self.model.encode(
-
             [query],
-
             normalize_embeddings=True
-
         )
 
         query_embedding = np.asarray(
@@ -543,27 +578,23 @@ class IntentStoreSearch:
         )
 
         # --------------------------------------------------------
-        # FAISS
+        # FAISS SEARCH
         # --------------------------------------------------------
 
-        actual_k = min(
-            int(top_k),
-            self.index.ntotal
-        )
+        actual_k = self.index.ntotal
 
         scores, indices = self.index.search(
-
             query_embedding,
-
             actual_k
-
         )
 
         # --------------------------------------------------------
-        # Results
+        # RESULTS
         # --------------------------------------------------------
 
         results = []
+
+        debug_filenames = set()
 
         for score, idx in zip(
             scores[0],
@@ -571,11 +602,9 @@ class IntentStoreSearch:
         ):
 
             if idx < 0:
-
                 continue
 
             if idx >= len(self.chunks):
-
                 continue
 
             chunk = self.chunks[idx]
@@ -586,15 +615,30 @@ class IntentStoreSearch:
                     "text": str(chunk)
                 }
 
-            result = {
+            # ----------------------------------------------------
+            # ROBUST FILENAME DETECTION
+            # ----------------------------------------------------
 
-                "filename": chunk.get(
-                    "filename",
-                    chunk.get(
-                        "document",
-                        "Unknown document"
-                    )
-                ),
+            filename = self._get_chunk_filename(
+                chunk
+            )
+
+            if filename:
+                debug_filenames.add(filename)
+
+            if not filename:
+
+                continue
+
+            # ----------------------------------------------------
+            # OWNERSHIP FILTER
+            # ----------------------------------------------------
+
+            if filename not in user_documents:
+                continue
+
+            result = {
+                "filename": filename,
 
                 "page_number": chunk.get(
                     "page_number",
@@ -621,13 +665,20 @@ class IntentStoreSearch:
                     "text",
                     ""
                 ),
-
             }
 
             results.append(result)
 
+            if len(results) >= int(top_k):
+                break
+
+        print(
+            "FILENAMES FOUND IN SEARCH RESULTS:",
+            debug_filenames
+        )
+
         # --------------------------------------------------------
-        # Ranking
+        # RANKING
         # --------------------------------------------------------
 
         if (
@@ -638,13 +689,9 @@ class IntentStoreSearch:
             try:
 
                 results = rank_results(
-
                     query,
-
                     results,
-
                     self.document_metadata
-
                 )
 
             except Exception as error:
@@ -655,7 +702,7 @@ class IntentStoreSearch:
                 )
 
         # --------------------------------------------------------
-        # Remove duplicates
+        # REMOVE DUPLICATES
         # --------------------------------------------------------
 
         unique = []
@@ -676,15 +723,13 @@ class IntentStoreSearch:
             )
 
             if key in seen:
-
                 continue
 
             seen.add(key)
 
             unique.append(result)
 
-            if len(unique) >= 5:
-
+            if len(unique) >= int(top_k):
                 break
 
         return unique
@@ -704,9 +749,27 @@ if __name__ == "__main__":
         "\nEnter query: "
     )
 
+    print(
+        "\nFor this test, enter your user ID."
+    )
+
+    user_id = input(
+        "User ID: "
+    ).strip()
+
+    try:
+
+        user_id = int(user_id)
+
+    except ValueError:
+
+        print("Invalid user ID.")
+        raise SystemExit
+
     results = engine.search(
         query,
-        top_k=5
+        top_k=5,
+        user_id=user_id
     )
 
     print("\nRESULTS")
