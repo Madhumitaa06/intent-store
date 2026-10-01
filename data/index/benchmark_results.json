@@ -1,0 +1,17 @@
+{
+    "test_queries": 22,
+    "semantic_search": {
+        "queries_tested": 22,
+        "accuracy_at_1": 0.5455,
+        "accuracy_at_3": 0.9091,
+        "mean_reciprocal_rank": 0.7156,
+        "avg_query_time_ms": 65.98
+    },
+    "keyword_search": {
+        "queries_tested": 22,
+        "accuracy_at_1": 0.5455,
+        "accuracy_at_3": 0.7727,
+        "mean_reciprocal_rank": 0.6831,
+        "avg_query_time_ms": 31.45
+    }
+}
