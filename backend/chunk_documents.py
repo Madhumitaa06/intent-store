@@ -44,6 +44,7 @@ def create_chunks():
     for document in documents:
 
         filename = document["filename"]
+        document_id = document["document_id"]
 
         for page in document["pages"]:
 
@@ -64,6 +65,7 @@ def create_chunks():
                 chunk_data = {
                     "chunk_id": chunk_id,
                     "filename": filename,
+                    "document_id": document_id,
                     "page_number": page_number,
                     "chunk_number": chunk_number,
                     "text": chunk_text

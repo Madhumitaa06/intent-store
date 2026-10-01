@@ -18,10 +18,9 @@ FRONTEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = FRONTEND_DIR.parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
 
-DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR = PROJECT_ROOT / "data"
 INDEX_DIR = DATA_DIR / "index"
 DOCUMENTS_DIR = DATA_DIR / "documents"
-
 
 # Add backend to Python path
 if str(BACKEND_DIR) not in sys.path:
@@ -735,12 +734,14 @@ def document_retrieval():
         "success": True,
 
         "document": {
-
             "filename":
-                best_file.name,
+    best_file.name,
 
-            "path":
-                str(relative_path),
+"document_id":
+    best_file.stem,
+
+"path":
+    str(relative_path),
 
             "size":
                 best_file.stat().st_size,
@@ -753,6 +754,78 @@ def document_retrieval():
                 + relative_path.as_posix()
 
         }
+
+    })
+
+
+# ================================================================
+# STORAGE STATISTICS
+# ================================================================
+
+@app.route("/api/stats", methods=["GET"])
+def storage_stats():
+
+    if not DOCUMENTS_DIR.exists():
+
+        return jsonify({
+            "success": False,
+            "error": "Document directory does not exist."
+        }), 404
+
+    files = [
+        f
+        for f in DOCUMENTS_DIR.rglob("*")
+        if f.is_file()
+    ]
+
+    total_bytes = sum(
+        f.stat().st_size
+        for f in files
+    )
+
+    pdf_count = sum(
+        1
+        for f in files
+        if f.suffix.lower() == ".pdf"
+    )
+
+    other_count = len(files) - pdf_count
+
+    largest_file = None
+
+    if files:
+
+        largest = max(
+            files,
+            key=lambda f: f.stat().st_size
+        )
+
+        largest_file = {
+            "filename": largest.name,
+            "size_bytes": largest.stat().st_size
+        }
+
+    return jsonify({
+
+        "success": True,
+
+        "total_documents":
+            len(files),
+
+        "total_storage_bytes":
+            total_bytes,
+
+        "pdf_count":
+            pdf_count,
+
+        "other_count":
+            other_count,
+
+        "largest_file":
+            largest_file,
+
+        "storage_location":
+            str(DOCUMENTS_DIR)
 
     })
 

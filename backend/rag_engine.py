@@ -28,7 +28,7 @@ from search_engine import IntentStoreSearch
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv("backend/.env", override=True)
 except Exception:
     pass
 
@@ -39,7 +39,7 @@ except Exception:
     _GROQ_AVAILABLE = False
 
 
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
 
 
 # ================================================================

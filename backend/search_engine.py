@@ -588,6 +588,7 @@ class IntentStoreSearch:
 
             result = {
 
+                "document_id": chunk.get("document_id", "Unknown"),
                 "filename": chunk.get(
                     "filename",
                     chunk.get(

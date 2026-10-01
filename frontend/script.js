@@ -6,6 +6,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     console.log("INTENTSTORE frontend loaded");
+    loadStorageStats();
 
 
     // ============================================================
@@ -909,5 +910,104 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
     }
+
+// ================================================================
+// LOAD STORAGE STATISTICS
+// ================================================================
+
+async function loadStorageStats() {
+
+    const statsContainer =
+        document.getElementById("storageStatsContent");
+
+    if (!statsContainer) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch("/api/stats");
+
+        const data =
+            await response.json();
+
+        if (!data.success) {
+
+            statsContainer.textContent =
+                "Unable to load storage statistics.";
+
+            return;
+        }
+
+        const storageMB =
+            (
+                data.total_storage_bytes /
+                (1024 * 1024)
+            ).toFixed(1);
+
+        const largestMB =
+            data.largest_file
+                ? (
+                    data.largest_file.size_bytes /
+                    (1024 * 1024)
+                ).toFixed(1)
+                : "0";
+
+        statsContainer.innerHTML = `
+
+            <div style="
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(180px, 1fr));
+                gap: 16px;
+            ">
+
+                <div>
+                    <strong>Documents</strong><br>
+                    ${data.total_documents}
+                </div>
+
+                <div>
+                    <strong>Storage Used</strong><br>
+                    ${storageMB} MB
+                </div>
+
+                <div>
+                    <strong>PDF Files</strong><br>
+                    ${data.pdf_count}
+                </div>
+
+                <div>
+                    <strong>Largest File</strong><br>
+                    ${data.largest_file
+                        ? `${data.largest_file.filename}
+                           (${largestMB} MB)`
+                        : "None"}
+                </div>
+
+            </div>
+
+            <div style="
+                margin-top: 18px;
+                font-size: 14px;
+                opacity: 0.75;
+            ">
+                Storage location:
+                ${data.storage_location}
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Storage stats error:",
+            error
+        );
+
+        statsContainer.textContent =
+            "Unable to load storage statistics.";
+    }
+}
 
 });

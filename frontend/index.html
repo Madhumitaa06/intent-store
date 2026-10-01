@@ -1034,6 +1034,33 @@
                                             result.text || ""
                                         )}
                                     </div>
+<div style="
+    margin-top: 18px;
+    padding: 16px 20px;
+    border-radius: 16px;
+    background: #eee8d9;
+    font-size: 18px;
+    line-height: 1.5;
+">
+    <strong>💡 Why this matched</strong><br>
+
+    Semantic similarity:
+    ${escapeHtml(
+        String(result.similarity_score ?? 0)
+    )}
+    &nbsp; | &nbsp;
+
+    Keyword match:
+    ${escapeHtml(
+        String(result.keyword_score ?? 0)
+    )}
+    &nbsp; | &nbsp;
+
+    Metadata match:
+    ${escapeHtml(
+        String(result.metadata_score ?? 0)
+    )}
+</div>
                                 `;
 
 
@@ -1405,5 +1432,32 @@
 
 </script>
 
+<!-- =========================================================
+     STORAGE STATISTICS
+     ========================================================= -->
+
+<div
+    id="storageStats"
+    style="
+        margin: 40px auto;
+        max-width: 1100px;
+        padding: 24px;
+        border-radius: 20px;
+        background: #eee8d9;
+        font-size: 18px;
+        line-height: 1.6;
+    "
+>
+
+    <h2 style="margin-top: 0;">
+        📊 Storage Statistics
+    </h2>
+
+    <div id="storageStatsContent">
+        Loading storage statistics...
+    </div>
+
+</div>
+<script src="script.js"></script>
 </body>
 </html>
