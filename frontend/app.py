@@ -406,11 +406,11 @@ def upload_documents():
     ensure_backend_initialized()
 
 
-    if search_engine is None:
+    if WEB_ONLY:
         return jsonify({
             "success": False,
-            "error": "Search engine is not available."
-        }), 503
+            "error": "Document processing is temporarily disabled."
+     }), 503
 
     files = request.files.getlist("documents")
     files = [f for f in files if f and f.filename]
