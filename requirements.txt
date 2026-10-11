@@ -1,0 +1,16 @@
+
+Flask
+Flask-Cors
+gunicorn
+numpy
+faiss-cpu
+sentence-transformers
+PyMuPDF
+Pillow
+pytesseract
+python-dotenv
+groq
+anthropic
+bcrypt
+PyJWT
+neo4j
