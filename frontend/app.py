@@ -114,7 +114,7 @@ def initialize_backend():
     print("=" * 70)
 
 
-initialize_backend()
+
 
 # ================================================================
 # AUTH: SIGNUP / LOGIN
