@@ -10,10 +10,7 @@ import re
 import uuid
 from pathlib import Path
 
-import fitz
 import io
-import pytesseract
-from PIL import Image
 import numpy as np
 from werkzeug.utils import secure_filename
 
@@ -41,33 +38,17 @@ INDEX_DIR = DATA_DIR / "index"
 DOCUMENTS_DIR = DATA_DIR / "documents"
 
 # ================================================================
-# BACKEND IMPORTS
-# ================================================================
-WEB_ONLY = os.getenv("WEB_ONLY", "false").lower() == "true"
-
-# ================================================================
-# BACKEND IMPORTS
+# BACKEND IMPORTS (LAZY)
+# Do not load PyTorch / transformer models while the web server starts.
+# They are imported only when an AI feature is first used.
 # ================================================================
 
-WEB_ONLY = os.getenv("WEB_ONLY", "false").lower() == "true"
+WEB_ONLY = os.getenv("WEB_ONLY", "false").lower() == "true"  # legacy setting; no longer disables features
+ENABLE_GENERATIVE_LLM = os.getenv("ENABLE_GENERATIVE_LLM", "false").lower() == "true"
 
 RAGEngine = None
 IntentStoreSearch = None
-
-if not WEB_ONLY:
-    try:
-        from rag_engine import RAGEngine
-        print("RAGEngine imported successfully.")
-    except Exception as e:
-        print("RAGEngine import failed:", e)
-
-    try:
-        from search_engine import IntentStoreSearch
-        print("IntentStoreSearch imported successfully.")
-    except Exception as e:
-        print("SearchEngine import failed:", e)
-
-import auth
+_backend_import_error = None
 
 # ================================================================
 # FLASK
@@ -80,59 +61,64 @@ app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 CORS(app)
 
 # ================================================================
-# BACKEND INITIALIZATION
+# BACKEND INITIALIZATION (ON DEMAND)
 # ================================================================
 
 rag_engine = None
 search_engine = None
 _backend_initialized = False
+_rag_initialized = False
+
 
 def ensure_backend_initialized():
-    global _backend_initialized
+    """Load the semantic search backend only when a feature needs it."""
+    global _backend_initialized, IntentStoreSearch, search_engine, _backend_import_error
 
-    if WEB_ONLY:
+    if _backend_initialized:
         return
 
-    if not _backend_initialized:
-        initialize_backend()
+    try:
+        from search_engine import IntentStoreSearch as SearchClass
+        IntentStoreSearch = SearchClass
+        print("IntentStoreSearch imported on demand.")
+    except Exception as error:
+        _backend_import_error = error
+        print("Search engine import failed:", repr(error))
+        search_engine = None
         _backend_initialized = True
+        return
 
-def initialize_backend():
-    global rag_engine
-    global search_engine
+    try:
+        search_engine = IntentStoreSearch()
+        print("SEARCH ENGINE READY.")
+    except Exception as error:
+        _backend_import_error = error
+        print("SEARCH ENGINE FAILED:", repr(error))
+        search_engine = None
 
-    print("\n" + "=" * 70)
-    print("INTENTSTORE BACKEND INITIALIZATION")
-    print("=" * 70)
-    print("DATA:", DATA_DIR)
-    print("INDEX EXISTS:", INDEX_DIR.exists())
-    print("DOCUMENTS EXISTS:", DOCUMENTS_DIR.exists())
-
-    if IntentStoreSearch is not None:
-        try:
-            search_engine = IntentStoreSearch()
-            print("SEARCH ENGINE READY.")
-        except Exception as e:
-            print("SEARCH ENGINE FAILED:", repr(e))
-            search_engine = None
-
-    if RAGEngine is not None:
-        try:
-            rag_engine = RAGEngine()
-            print("RAG ENGINE READY.")
-
-            if getattr(rag_engine, "search_engine", None) is not None:
-                search_engine = rag_engine.search_engine
-                print("Using search engine from RAG engine.")
-        except Exception as e:
-            print("RAG ENGINE FAILED:", repr(e))
-            rag_engine = None
-
-    print("RAG:", rag_engine is not None)
+    _backend_initialized = True
     print("SEARCH:", search_engine is not None)
-    print("=" * 70)
 
 
+def ensure_rag_initialized():
+    """Optionally load generative RAG only when enabled and first requested."""
+    global _rag_initialized, rag_engine, RAGEngine, search_engine
+
+    if _rag_initialized or not ENABLE_GENERATIVE_LLM:
+        return
+
+    try:
+        from rag_engine import RAGEngine as RagClass
+        RAGEngine = RagClass
+        rag_engine = RAGEngine()
+        if getattr(rag_engine, "search_engine", None) is not None:
+            search_engine = rag_engine.search_engine
+        print("GENERATIVE RAG ENGINE READY.")
+    except Exception as error:
+        print("GENERATIVE RAG ENGINE FAILED:", repr(error))
+        rag_engine = None
+    finally:
+        _rag_initialized = True
 
 
 # ================================================================
@@ -403,14 +389,20 @@ def upload_documents():
     if user is None:
         return login_required_response()
 
-    ensure_backend_initialized()
-
-
-    if WEB_ONLY:
+    # Load PDF/OCR dependencies only when a PDF upload is actually requested.
+    global fitz, pytesseract, Image
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+    except Exception as error:
         return jsonify({
             "success": False,
-            "error": "Document processing is temporarily disabled."
-     }), 503
+            "error": "PDF processing dependencies are unavailable.",
+            "detail": str(error)
+        }), 503
+
+    ensure_backend_initialized()
 
     files = request.files.getlist("documents")
     files = [f for f in files if f and f.filename]
@@ -801,7 +793,8 @@ def health():
         "success": True,
         "status": "ok",
         "rag_available": rag_engine is not None,
-        "search_available": search_engine is not None
+        "search_available": search_engine is not None,
+        "generative_llm_enabled": ENABLE_GENERATIVE_LLM
     })
 
 # ================================================================
@@ -1045,8 +1038,9 @@ def ask():
             })
 
         generated_by_llm = False
+        ensure_rag_initialized()
 
-        if rag_engine is not None and rag_engine.llm_enabled:
+        if rag_engine is not None and getattr(rag_engine, "llm_enabled", False):
             try:
                 answer = rag_engine._generate_answer_llm(question, results)
                 generated_by_llm = True
