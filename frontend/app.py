@@ -393,6 +393,9 @@ def upload_documents():
     if user is None:
         return login_required_response()
 
+    ensure_backend_initialized()
+
+
     if search_engine is None:
         return jsonify({
             "success": False,
@@ -669,6 +672,8 @@ def user_organization():
     try:
         # Generate metadata for existing uploads if it does not exist yet.
         if not organization_path.exists():
+            ensure_backend_initialized()
+            
             if search_engine is None:
                 return jsonify({
                     "success": False,
@@ -797,6 +802,8 @@ def health():
 
 def _search_user_documents(user_id, query, top_k=5):
     """Retrieve evidence only from the authenticated user's index."""
+    ensure_backend_initialized()
+    
     if search_engine is None:
         return []
 
@@ -1070,6 +1077,8 @@ def search():
     user = get_logged_in_user()
     if user is None:
         return login_required_response()
+
+    ensure_backend_initialized()
 
     if search_engine is None:
         return jsonify({
