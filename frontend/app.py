@@ -3,6 +3,7 @@
 # frontend/app.py
 # ================================================================
 
+import os
 import sys
 import json
 import re
@@ -42,22 +43,29 @@ DOCUMENTS_DIR = DATA_DIR / "documents"
 # ================================================================
 # BACKEND IMPORTS
 # ================================================================
+WEB_ONLY = os.getenv("WEB_ONLY", "false").lower() == "true"
+
+# ================================================================
+# BACKEND IMPORTS
+# ================================================================
+
+WEB_ONLY = os.getenv("WEB_ONLY", "false").lower() == "true"
 
 RAGEngine = None
 IntentStoreSearch = None
 
+if not WEB_ONLY:
+    try:
+        from rag_engine import RAGEngine
+        print("RAGEngine imported successfully.")
+    except Exception as e:
+        print("RAGEngine import failed:", e)
 
-try:
-    from rag_engine import RAGEngine
-    print("RAGEngine imported successfully.")
-except Exception as e:
-    print("RAGEngine import failed:", e)
-
-try:
-    from search_engine import IntentStoreSearch
-    print("IntentStoreSearch imported successfully.")
-except Exception as e:
-    print("SearchEngine import failed:", e)
+    try:
+        from search_engine import IntentStoreSearch
+        print("IntentStoreSearch imported successfully.")
+    except Exception as e:
+        print("SearchEngine import failed:", e)
 
 import auth
 
@@ -82,10 +90,12 @@ _backend_initialized = False
 def ensure_backend_initialized():
     global _backend_initialized
 
+    if WEB_ONLY:
+        return
+
     if not _backend_initialized:
         initialize_backend()
         _backend_initialized = True
-
 
 def initialize_backend():
     global rag_engine
