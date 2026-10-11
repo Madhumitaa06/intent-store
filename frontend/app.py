@@ -46,6 +46,7 @@ DOCUMENTS_DIR = DATA_DIR / "documents"
 RAGEngine = None
 IntentStoreSearch = None
 
+
 try:
     from rag_engine import RAGEngine
     print("RAGEngine imported successfully.")
@@ -76,6 +77,14 @@ CORS(app)
 
 rag_engine = None
 search_engine = None
+_backend_initialized = False
+
+def ensure_backend_initialized():
+    global _backend_initialized
+
+    if not _backend_initialized:
+        initialize_backend()
+        _backend_initialized = True
 
 
 def initialize_backend():
