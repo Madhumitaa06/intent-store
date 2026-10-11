@@ -16,7 +16,6 @@ from werkzeug.utils import secure_filename
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import auth
 
 # ================================================================
 # PATHS
@@ -28,6 +27,11 @@ BACKEND_DIR = PROJECT_ROOT / "backend"
 
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import auth
 
 # Use backend/data if it has the index, otherwise the project-level data folder
 if (BACKEND_DIR / "data" / "index").exists():
