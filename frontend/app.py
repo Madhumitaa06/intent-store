@@ -75,34 +75,40 @@ _backend_initialized = False
 _rag_initialized = False
 
 
+
 def ensure_backend_initialized():
-    """Load the semantic search backend only when a feature needs it."""
-    global _backend_initialized, IntentStoreSearch, search_engine, _backend_import_error
+    """Load only the embedding model needed for private document search."""
+    global _backend_initialized, IntentStoreSearch
+    global search_engine, _backend_import_error
 
     if _backend_initialized:
         return
 
     try:
-        from search_engine import IntentStoreSearch as SearchClass
-        IntentStoreSearch = SearchClass
-        print("IntentStoreSearch imported on demand.")
-    except Exception as error:
-        _backend_import_error = error
-        print("Search engine import failed:", repr(error))
-        search_engine = None
-        _backend_initialized = True
-        return
+        import torch
+        from sentence_transformers import SentenceTransformer
+        from types import SimpleNamespace
 
-    try:
-        search_engine = IntentStoreSearch()
-        print("SEARCH ENGINE READY.")
+        # Limit CPU thread usage on the small Render instance.
+        torch.set_num_threads(1)
+
+        print("Loading embedding model only...")
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+
+        # Keep the existing search_engine.model interface,
+        # without loading the unrelated shared FAISS index.
+        search_engine = SimpleNamespace(model=model)
+
+        print("EMBEDDING MODEL READY.")
+
     except Exception as error:
         _backend_import_error = error
-        print("SEARCH ENGINE FAILED:", repr(error))
         search_engine = None
+        print("EMBEDDING MODEL FAILED:", repr(error))
 
     _backend_initialized = True
     print("SEARCH:", search_engine is not None)
+
 
 
 def ensure_rag_initialized():
