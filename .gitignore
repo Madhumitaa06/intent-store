@@ -2,3 +2,9 @@ venv/
 .env
 __pycache__/
 *.pyc
+# IntentStore runtime data and private user uploads
+backend/data/
+data/user_indexes/
+data/documents/user*_*.pdf
+
+data/documents/user*_*.pdf

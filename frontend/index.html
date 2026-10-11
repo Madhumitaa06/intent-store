@@ -298,12 +298,42 @@ body {
             <button id="logoutButton" class="logout-button" type="button">Log out</button>
         </div>
 
+        <section id="uploadSection" style="margin:24px auto;max-width:1000px;padding:22px;background:#f6f3ed;border-radius:16px;text-align:left;">
+            <h2 style="margin-top:0;">Upload your documents</h2>
+            <p>Upload text-based PDFs to search them and ask questions about their contents.</p>
+            <form id="uploadForm" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                <input id="documentFiles" type="file" name="documents" accept=".pdf,application/pdf" multiple required>
+                <button id="uploadButton" type="submit" class="search-button" style="min-height:48px;padding:10px 20px;">Upload PDFs</button>
+            </form>
+            <div id="uploadStatus" role="status" aria-live="polite" style="margin-top:12px;white-space:pre-line;"></div>
+        </section>
+
+
+        <section id="storageStats" style="margin:24px auto;max-width:1000px;padding:22px;background:#f6f3ed;border-radius:16px;text-align:left;">
+            <h2 style="margin-top:0;">📊 Storage Statistics</h2>
+            <div id="storageStatsContent" role="status">Loading your storage statistics...</div>
+        </section>
+
+
+        <section id="organizationSection" style="margin:24px auto;max-width:1000px;padding:22px;background:#f6f3ed;border-radius:16px;text-align:left;">
+            <h2 style="margin-top:0;">Document Organization & Version History</h2>
+            <p>Categories, tags, duplicate detection, and version information for your uploads.</p>
+            <div id="organizationContent" role="status">Loading document organization...</div>
+        </section>
+
+
+        <section id="relatedDocumentsSection" style="margin:24px auto;max-width:1000px;padding:22px;background:#f6f3ed;border-radius:16px;text-align:left;">
+          <h2>Related Documents</h2>
+          <select id="relatedDocumentSelect"><option value="">Choose a document</option></select>
+          <button id="findRelatedButton" type="button">Find Related</button>
+          <div id="relatedDocumentsContent">Choose a document to begin.</div>
+        </section>
         <div class="search-row">
             <input id="questionInput" class="question-input" type="text"
                    autocomplete="off" placeholder="Search your knowledge base...">
 
             <select id="modeSelect" class="mode-select">
-                <option value="information">🔎 Information Retrieval</option>
+                <option value="information">🤖 AI Assistant / Ask Questions</option>
                 <option value="document">📄 Document Retrieval</option>
             </select>
 
@@ -389,6 +419,9 @@ function showAppScreen() {
     let email = "";
     try { email = localStorage.getItem(EMAIL_KEY) || ""; } catch (e) {}
     userEmail.textContent = email;
+    loadOrganization();
+    loadRelatedDocumentChoices();
+    loadStorageStats();
 }
 
 function setSignupMode(on) {
@@ -614,6 +647,7 @@ searchButton.addEventListener("click", async function () {
     searchButton.disabled = true;
     clearResults();
 
+
     /* ---------------- INFORMATION RETRIEVAL ---------------- */
 
     if (modeSelect.value === "information") {
@@ -635,19 +669,27 @@ searchButton.addEventListener("click", async function () {
             const data = await readJson(response);
 
             if (!response.ok || !data.success) {
-                throw new Error(data.error || data.answer || "Information retrieval failed.");
+                throw new Error(
+                    data.error || data.answer || "Information retrieval failed."
+                );
             }
 
             resultsTitle.textContent = "AI Answer";
             resultsContainer.innerHTML = "";
 
+            // Display the AI-generated answer
             const answerCard = document.createElement("div");
             answerCard.className = "answer-card";
+
             answerCard.innerHTML =
                 '<div class="answer-heading">Answer</div>' +
-                '<div class="answer-text">' + escapeHtml(data.answer || "") + '</div>';
+                '<div class="answer-text">' +
+                    escapeHtml(data.answer || "") +
+                '</div>';
+
             resultsContainer.appendChild(answerCard);
 
+            // Display supporting documents and explanations
             if (Array.isArray(data.results) && data.results.length > 0) {
 
                 const heading = document.createElement("div");
@@ -655,26 +697,82 @@ searchButton.addEventListener("click", async function () {
                 heading.style.fontWeight = "700";
                 heading.style.margin = "25px 0";
                 heading.textContent = "Retrieved Evidence";
+
                 resultsContainer.appendChild(heading);
+
+                const ignoredTerms = new Set([
+                    "what", "which", "when", "where", "who", "why",
+                    "how", "does", "did", "are", "is", "the", "a",
+                    "an", "of", "for", "in", "on", "to", "and",
+                    "or", "with", "by", "from", "this", "that",
+                    "these", "those", "its", "their"
+                ]);
+
+                const queryTerms = [
+                    ...new Set(
+                        (question.toLowerCase().match(/[a-z0-9]{3,}/g) || [])
+                            .filter(term => !ignoredTerms.has(term))
+                    )
+                ];
 
                 data.results.forEach(function (result) {
 
                     const card = document.createElement("div");
                     card.className = "evidence-card";
 
+                    const filename = result.filename || "Unknown document";
+                    const excerpt = result.text || "";
+
+                    const searchableWords = new Set(
+                        (
+                            filename + " " + excerpt
+                        ).toLowerCase().match(/[a-z0-9]{3,}/g) || []
+                    );
+
+                    const matchedTerms = queryTerms.filter(term =>
+                        searchableWords.has(term)
+                    );
+
+                    const explanation = matchedTerms.length > 0
+                        ? "Matching query terms: " +
+                          matchedTerms.join(", ") + "."
+                        : "Ranked as relevant by the retrieval system, " +
+                          "although no exact query-term overlap was found.";
+
+                    const relevance =
+                        result.relevance_score ??
+                        result.similarity_score;
+
+                    const relevanceText =
+                        relevance !== undefined && relevance !== null
+                            ? String(relevance)
+                            : "Not provided";
+
                     card.innerHTML =
                         '<div class="document-name">📄 ' +
-                            escapeHtml(result.filename || "Unknown document") +
+                            escapeHtml(filename) +
                         '</div>' +
+
                         '<div class="document-info">Page: ' +
-                            escapeHtml(String(result.page_number ?? "Unknown")) +
+                            escapeHtml(String(
+                                result.page_number ?? "Unknown"
+                            )) +
                             ' &nbsp;|&nbsp; Chunk: ' +
-                            escapeHtml(String(result.chunk_number ?? "Unknown")) +
-                            ' &nbsp;|&nbsp; Relevance: ' +
-                            escapeHtml(String(result.relevance_score ?? result.similarity_score ?? 0)) +
+                            escapeHtml(String(
+                                result.chunk_number ?? "Unknown"
+                            )) +
                         '</div>' +
+
+                        '<div class="document-info"><strong>Relevance score:</strong> ' +
+                            escapeHtml(relevanceText) +
+                        '</div>' +
+
+                        '<div class="document-info"><strong>Why this matched:</strong> ' +
+                            escapeHtml(explanation) +
+                        '</div>' +
+
                         '<div class="evidence-text">' +
-                            escapeHtml(result.text || "") +
+                            escapeHtml(excerpt) +
                         '</div>';
 
                     resultsContainer.appendChild(card);
@@ -685,13 +783,17 @@ searchButton.addEventListener("click", async function () {
             showStatus("Search completed successfully.", "success");
 
         } catch (error) {
-            showStatus(error.message || "Information retrieval failed.", "error");
+            showStatus(
+                error.message || "Information retrieval failed.",
+                "error"
+            );
         }
 
         searchButton.disabled = false;
         searchButton.textContent = "Search";
         return;
     }
+
 
     /* ---------------- DOCUMENT RETRIEVAL ---------------- */
 
@@ -744,6 +846,7 @@ searchButton.addEventListener("click", async function () {
                         '<p><strong>Chunk:</strong> ' +
                             escapeHtml(String(result.chunk_number ?? "Unknown")) + '</p>' +
                         '<p><strong>Relevance:</strong> ' +
+
                             escapeHtml(String(result.relevance_score ?? result.similarity_score ?? 0)) + '</p>' +
                         '<hr>' +
                         '<p><strong>Retrieved Content:</strong></p>' +
@@ -786,6 +889,286 @@ if (getToken()) {
     showAppScreen();
 } else {
     showLoginScreen();
+}
+
+
+// PRIVATE PDF UPLOADS
+const uploadForm = document.getElementById("uploadForm");
+const documentFilesInput = document.getElementById("documentFiles");
+const uploadButton = document.getElementById("uploadButton");
+const uploadStatus = document.getElementById("uploadStatus");
+
+if (uploadForm) {
+    uploadForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        if (!documentFilesInput.files.length) {
+            uploadStatus.textContent = "Choose at least one PDF.";
+            return;
+        }
+
+        const formData = new FormData();
+        for (const file of documentFilesInput.files) {
+            formData.append("documents", file);
+        }
+
+        uploadButton.disabled = true;
+        uploadStatus.textContent = "Uploading and indexing PDFs...";
+
+        try {
+            const response = await authFetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (_) {
+                throw new Error("The server returned an invalid response. Check the Flask terminal.");
+            }
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    (data.errors || []).join(" ") ||
+                    data.error ||
+                    "Upload failed."
+                );
+            }
+
+            const messages = [];
+            const names = (data.uploaded || []).map(item => item.filename);
+            if (names.length) messages.push("Uploaded and indexed: " + names.join(", "));
+            if (data.errors && data.errors.length) {
+                messages.push("Some files were skipped:\n" + data.errors.join("\n"));
+            }
+
+            uploadStatus.textContent = messages.join("\n") || "Upload complete.";
+            documentFilesInput.value = "";
+        } catch (error) {
+            uploadStatus.textContent = error.message || "Upload failed.";
+        } finally {
+            uploadButton.disabled = false;
+        }
+    });
+}
+
+
+
+async function loadStorageStats() {
+    const container = document.getElementById("storageStatsContent");
+    if (!container) return;
+
+    try {
+        const response = await authFetch("/api/stats");
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Could not load statistics.");
+        }
+
+        const mb = bytes => (bytes / (1024 * 1024)).toFixed(1) + " MB";
+        const largest = data.largest_file
+            ? data.largest_file.filename + " (" + mb(data.largest_file.size_bytes) + ")"
+            : "None";
+
+        const metrics = [
+            ["Documents", String(data.total_documents)],
+            ["Storage used", mb(data.total_storage_bytes)],
+            ["PDF files", String(data.pdf_count)],
+            ["Other files", String(data.other_count)],
+            ["Largest file", largest]
+        ];
+
+        container.replaceChildren();
+        const grid = document.createElement("div");
+        grid.style.cssText =
+            "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;";
+
+        for (const [label, value] of metrics) {
+            const card = document.createElement("div");
+            card.style.cssText =
+                "padding:14px;background:#fff;border-radius:10px;overflow-wrap:anywhere;";
+
+            const heading = document.createElement("div");
+            heading.style.cssText = "font-size:14px;opacity:.7;margin-bottom:6px;";
+            heading.textContent = label;
+
+            const result = document.createElement("strong");
+            result.textContent = value;
+
+            card.append(heading, result);
+            grid.appendChild(card);
+        }
+
+        container.appendChild(grid);
+    } catch (error) {
+        container.textContent =
+            "Unable to load storage statistics. " +
+            (error.message || "Please refresh the page.");
+    }
+}
+
+
+
+async function loadOrganization() {
+    const container = document.getElementById("organizationContent");
+    if (!container) return;
+
+    try {
+        const response = await authFetch("/api/organization");
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Could not load organization data.");
+        }
+
+        container.replaceChildren();
+
+        if (!data.documents || data.documents.length === 0) {
+            container.textContent = "No uploaded documents to organize yet.";
+            return;
+        }
+
+        for (const doc of data.documents) {
+            const card = document.createElement("div");
+            card.style.cssText =
+                "padding:16px;margin:12px 0;background:white;border-radius:10px;overflow-wrap:anywhere;";
+
+            const title = document.createElement("h3");
+            title.style.marginTop = "0";
+            title.textContent = doc.filename || "Unnamed document";
+            card.appendChild(title);
+
+            const category = document.createElement("p");
+            category.textContent =
+                "Category: " + (doc.category || "Uncategorized") +
+                " · Confidence: " + Number(doc.category_confidence || 0);
+            card.appendChild(category);
+
+            const tags = document.createElement("p");
+            tags.textContent = "Tags: " +
+                ((doc.tags || []).join(", ") || "None");
+            card.appendChild(tags);
+
+            const duplicates = document.createElement("p");
+            const near = (doc.near_duplicates || []).map(d => d.filename);
+            duplicates.textContent =
+                "Exact duplicate: " + (doc.exact_duplicate_of || "None") +
+                " · Near duplicates: " + (near.join(", ") || "None");
+            card.appendChild(duplicates);
+
+            const version = document.createElement("p");
+            if (doc.version) {
+                version.textContent =
+                    "Version " + doc.version.version +
+                    " of " + doc.version.total_versions +
+                    " · Latest: " + (doc.version.is_latest ? "Yes" : "No");
+            } else {
+                version.textContent = "Version history: No related versions detected.";
+            }
+            card.appendChild(version);
+
+            container.appendChild(card);
+        }
+    } catch (error) {
+        container.textContent =
+            "Could not load document organization: " +
+            (error.message || "Please refresh the page.");
+    }
+}
+
+
+async function loadRelatedDocumentChoices() {
+    const select = document.getElementById("relatedDocumentSelect");
+    const output = document.getElementById("relatedDocumentsContent");
+    if (!select || !output) return;
+
+    try {
+        const response = await authFetch("/api/organization");
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Could not load your documents.");
+        }
+
+        select.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose a document";
+        select.appendChild(placeholder);
+
+        for (const doc of data.documents || []) {
+            const option = document.createElement("option");
+            option.value = doc.filename;
+            option.textContent = doc.filename;
+            select.appendChild(option);
+        }
+
+        output.textContent = data.documents.length
+            ? "Choose a document, then click Find Related."
+            : "Upload a document first.";
+    } catch (error) {
+        output.textContent = "Could not load documents: " + error.message;
+    }
+}
+
+const relatedButton = document.getElementById("findRelatedButton");
+if (relatedButton) {
+    relatedButton.addEventListener("click", async function () {
+        const select = document.getElementById("relatedDocumentSelect");
+        const output = document.getElementById("relatedDocumentsContent");
+
+        if (!select.value) {
+            output.textContent = "Choose a document first.";
+            return;
+        }
+
+        relatedButton.disabled = true;
+        output.textContent = "Searching the knowledge graph...";
+
+        try {
+            const response = await authFetch("/api/related", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({filename: select.value})
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Related search failed.");
+            }
+
+            output.replaceChildren();
+
+            if (!data.related_documents.length) {
+                output.textContent =
+                    "No related documents found yet. Documents need graph data and shared entities.";
+                return;
+            }
+
+            for (const doc of data.related_documents) {
+                const card = document.createElement("div");
+                card.style.cssText =
+                    "background:white;border-radius:8px;padding:12px;margin:10px 0;";
+
+                const title = document.createElement("strong");
+                title.textContent = doc.filename;
+                card.appendChild(title);
+
+                const detail = document.createElement("p");
+                detail.textContent =
+                    "Shared entities (" + doc.shared_count + "): " +
+                    (doc.shared_entities || []).map(e => e.name).join(", ");
+                card.appendChild(detail);
+
+                output.appendChild(card);
+            }
+        } catch (error) {
+            output.textContent = error.message || "Related search failed.";
+        } finally {
+            relatedButton.disabled = false;
+        }
+    });
 }
 
 </script>

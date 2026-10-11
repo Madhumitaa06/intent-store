@@ -145,6 +145,175 @@ class KnowledgeGraph:
 
         print(f"Added knowledge from {filename} to the graph.")
 
+
+    # ============================================================
+    # PRIVATE WORKSPACE GRAPH METHODS
+    # ============================================================
+
+    def add_user_document_knowledge(self, extraction_result, user_id):
+        """Add a document and entities scoped to one user."""
+        filename = extraction_result["filename"]
+        document_id = extraction_result["document_id"]
+        user_id = int(user_id)
+        entities = extraction_result.get("entities", [])
+        relationships = extraction_result.get("relationships", [])
+
+        # Prefix graph entity keys with the owner ID. This preserves the
+        # existing global entity-name constraint without cross-user links.
+        entity_keys = {}
+
+        def entity_key(name):
+            clean = str(name).strip()
+            return f"user_{user_id}::{clean.casefold()}"
+
+        with self.driver.session() as session:
+            session.run(
+                """
+                MERGE (d:Document {document_id: $document_id})
+                ON CREATE SET d.user_id = $user_id
+                WITH d
+                WHERE d.user_id = $user_id
+                SET d.filename = $filename
+                RETURN d.document_id AS document_id
+                """,
+                document_id=document_id,
+                user_id=user_id,
+                filename=filename
+            ).consume()
+
+            # Verify that the document node belongs to this user.
+            record = session.run(
+                """
+                MATCH (d:Document {
+                    document_id: $document_id,
+                    user_id: $user_id
+                })
+                RETURN d.document_id AS document_id
+                """,
+                document_id=document_id,
+                user_id=user_id
+            ).single()
+
+            if record is None:
+                raise PermissionError("Document graph ownership check failed.")
+
+            for entity in entities:
+                display_name = str(entity.get("name", "")).strip()
+                if not display_name:
+                    continue
+
+                key = entity_key(display_name)
+                entity_keys[display_name.casefold()] = key
+                etype = str(entity.get("type", "TOPIC")).strip().upper()
+
+                session.run(
+                    """
+                    MERGE (e:Entity {name: $key})
+                    ON CREATE SET
+                        e.display_name = $display_name,
+                        e.type = $etype,
+                        e.user_id = $user_id
+                    WITH e
+                    MATCH (d:Document {
+                        document_id: $document_id,
+                        user_id: $user_id
+                    })
+                    MERGE (d)-[:MENTIONS]->(e)
+                    """,
+                    key=key,
+                    display_name=display_name,
+                    etype=etype,
+                    user_id=user_id,
+                    document_id=document_id
+                ).consume()
+
+            for rel in relationships:
+                source = str(rel.get("source", "")).strip()
+                target = str(rel.get("target", "")).strip()
+                if not source or not target:
+                    continue
+
+                source_key = entity_keys.get(source.casefold(), entity_key(source))
+                target_key = entity_keys.get(target.casefold(), entity_key(target))
+                relation = "".join(
+                    ch for ch in str(rel.get("relation", "RELATED_TO")).upper()
+                    if ch.isalnum() or ch == "_"
+                ) or "RELATED_TO"
+
+                for key, display_name in (
+                    (source_key, source),
+                    (target_key, target)
+                ):
+                    session.run(
+                        """
+                        MERGE (e:Entity {name: $key})
+                        ON CREATE SET
+                            e.display_name = $display_name,
+                            e.type = 'TOPIC',
+                            e.user_id = $user_id
+                        """,
+                        key=key,
+                        display_name=display_name,
+                        user_id=user_id
+                    ).consume()
+
+                session.run(
+                    f"""
+                    MATCH (a:Entity {{
+                        name: $source_key, user_id: $user_id
+                    }})
+                    MATCH (b:Entity {{
+                        name: $target_key, user_id: $user_id
+                    }})
+                    MERGE (a)-[:{relation}]->(b)
+                    """,
+                    source_key=source_key,
+                    target_key=target_key,
+                    user_id=user_id
+                ).consume()
+
+        print(f"Added private graph knowledge for user {user_id}: {filename}")
+
+    def get_related_documents_for_user_document(
+        self, document_id, user_id, limit=10
+    ):
+        """Find related documents belonging to the same user only."""
+        query = """
+            MATCH (d:Document {
+                document_id: $document_id,
+                user_id: $user_id
+            })-[:MENTIONS]->(e:Entity {user_id: $user_id})
+                  <-[:MENTIONS]-(other:Document {user_id: $user_id})
+            WHERE other.document_id <> $document_id
+            WITH other, collect(DISTINCT {
+                name: coalesce(e.display_name, e.name),
+                type: e.type
+            }) AS shared
+            RETURN other.document_id AS document_id,
+                   other.filename AS filename,
+                   size(shared) AS shared_count,
+                   shared AS shared_entities
+            ORDER BY shared_count DESC
+            LIMIT $limit
+        """
+
+        with self.driver.session() as session:
+            result = session.run(
+                query,
+                document_id=document_id,
+                user_id=int(user_id),
+                limit=int(limit)
+            )
+            return [
+                {
+                    "document_id": row["document_id"],
+                    "filename": row["filename"],
+                    "shared_count": row["shared_count"],
+                    "shared_entities": row["shared_entities"]
+                }
+                for row in result
+            ]
+
     # ============================================================
     # QUERIES: ENTITY-BASED
     # ============================================================

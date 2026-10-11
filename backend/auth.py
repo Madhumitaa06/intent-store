@@ -15,7 +15,9 @@ import sqlite3
 import bcrypt
 import jwt
 import datetime
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 
 # ================================================================
@@ -24,7 +26,10 @@ from pathlib import Path
 
 DB_FILE = Path(__file__).resolve().parent / "data" / "users.db"
 
-SECRET_KEY = "change-this-to-something-random-and-long"
+load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY must be set in backend/.env")
 
 TOKEN_EXPIRY_HOURS = 24
 
